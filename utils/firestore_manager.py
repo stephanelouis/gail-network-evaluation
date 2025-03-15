@@ -11,11 +11,19 @@ import pandas as pd
 import streamlit as st
 
 # Initialize Firebase
+if not st.secrets or "FIREBASE_CREDENTIALS" not in st.secrets:
+    st.error("⚠️ Firebase credentials not found. Please configure them in Streamlit Cloud.")
+    st.stop()
+
 try:
     app = firebase_admin.get_app()
 except ValueError:
-    cred = credentials.Certificate(st.secrets["FIREBASE_CREDENTIALS"])
-    app = firebase_admin.initialize_app(cred)
+    try:
+        cred = credentials.Certificate(st.secrets["FIREBASE_CREDENTIALS"])
+        app = firebase_admin.initialize_app(cred)
+    except Exception as e:
+        st.error("⚠️ Failed to initialize Firebase. Check your credentials.")
+        st.stop()
 
 db = firestore.client()
 
@@ -104,5 +112,5 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
             return case_study
         return None
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"Database error: {str(e)}")
         return None 
