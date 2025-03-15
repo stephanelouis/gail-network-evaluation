@@ -19,10 +19,26 @@ try:
     app = firebase_admin.get_app()
 except ValueError:
     try:
-        cred = credentials.Certificate(st.secrets["FIREBASE_CREDENTIALS"])
+        # Debug: Print credential type
+        creds = st.secrets["FIREBASE_CREDENTIALS"]
+        st.write(f"Credential type: {type(creds)}")
+        
+        # If credentials are string, parse them
+        if isinstance(creds, str):
+            try:
+                creds = json.loads(creds)
+                st.write("Successfully parsed JSON string")
+            except json.JSONDecodeError as e:
+                st.error(f"Failed to parse credentials JSON: {str(e)}")
+                st.stop()
+        
+        # Initialize Firebase
+        cred = credentials.Certificate(creds)
         app = firebase_admin.initialize_app(cred)
+        st.write(f"Firebase initialized with project: {creds.get('project_id')}")
+        
     except Exception as e:
-        st.error("⚠️ Failed to initialize Firebase. Check your credentials.")
+        st.error(f"⚠️ Failed to initialize Firebase: {str(e)}")
         st.stop()
 
 db = firestore.client()
