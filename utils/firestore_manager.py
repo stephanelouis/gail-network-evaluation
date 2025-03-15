@@ -18,26 +18,35 @@ def get_db():
     global _db
     if _db is None:
         try:
+            
+            # First try to get existing app
             app = firebase_admin.get_app()
             st.write("Using existing Firebase app")
         except ValueError:
-            # Check if running on Streamlit Cloud
-            if 'FIREBASE_CREDENTIALS' in st.secrets:
-                # Use Streamlit secrets
+            try:
+                # Try to get credentials from Streamlit secrets
+                if not hasattr(st, 'secrets') or 'FIREBASE_CREDENTIALS' not in st.secrets:
+                    raise ValueError("No Firebase credentials found in Streamlit secrets")
+                
                 st.write("Initializing Firebase with Streamlit secrets")
                 cred_dict = st.secrets["FIREBASE_CREDENTIALS"]
                 if isinstance(cred_dict, str):
-                    cred_dict = json.loads(cred_dict)
+                    try:
+                        cred_dict = json.loads(cred_dict)
+                    except json.JSONDecodeError as e:
+                        st.error("Failed to parse Firebase credentials from secrets")
+                        raise ValueError(f"Invalid Firebase credentials format: {str(e)}")
+                
                 cred = credentials.Certificate(cred_dict)
-            else:
-                # Local development - use file-based credentials
-                st.write("Initializing Firebase with local credentials")
-                cred = credentials.Certificate('config/firebase-credentials.json')
-            
-            app = firebase_admin.initialize_app(cred)
+                app = firebase_admin.initialize_app(cred)
+                st.write(f"Successfully initialized Firebase with project ID: {cred_dict.get('project_id')}")
+                
+            except Exception as e:
+                st.error(f"Failed to initialize Firebase: {str(e)}")
+                st.error("Please ensure Firebase credentials are properly configured in Streamlit secrets")
+                raise
         
         _db = firestore.client()
-        st.write(f"Connected to Firebase project: {app.project_id}")
     return _db
 
 def get_case_studies_stats() -> Dict[str, Any]:
