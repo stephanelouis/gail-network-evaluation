@@ -9,72 +9,110 @@ from utils.firestore_manager import get_random_case_study
 def display_evaluation_form(case_study):
     """Display the evaluation form for the case study"""
     
+    # Initialize session state for selected area if not exists
+    if 'selected_area' not in st.session_state:
+        st.session_state.selected_area = "Accuracy"  # Default to first option
+    
     with st.form("evaluation_form"):
-
         st.subheader("Evaluation Form")
         
         # Basic Information
         st.write(f"**Case Study ID:** {case_study.get('id', 'N/A')}")
         st.write(f"**Source URL:** {case_study.get('source_url', 'N/A')}")
         
-        # Evaluation Criteria
-        st.markdown("### Quality Assessment")
-        quality_score = st.slider("Overall Quality", 1, 5, 3, help="Rate the overall quality of the case study")
-        
-        st.markdown("### Implementation Details")
-        implementation_clarity = st.select_slider(
-            "Implementation Clarity",
-            options=["Very Poor", "Poor", "Average", "Good", "Excellent"],
-            value="Average",
-            help="How clearly are the implementation details explained?"
+        # 1. Overall Assessment
+        st.markdown("##### 1. Overall Assessment")
+        confidence_score = st.slider(
+            "How likely would you be to recommend publishing this AI-generated case study on the GAiL Network website?",
+            min_value=1,
+            max_value=10,
+            value=5,
+            help="1 = Would not recommend at all, 5-6 = Neutral, 7-8 = Would recommend with changes, 9-10 = Would strongly recommend"
         )
         
-        st.markdown("### Business Impact")
-        impact_areas = st.multiselect(
-            "Impact Areas",
-            ["Cost Reduction", "Revenue Growth", "Process Efficiency", "Customer Experience", "Innovation", "Other"],
-            help="Select all areas where this implementation had significant impact"
+        # 2. Top Improvement Area
+        st.markdown("##### 2. Top Improvement Area")
+        
+        # Define improvement areas with descriptions
+        improvement_areas = {
+            "Relevance": "Relevance (Alignment with AI case study goals)",
+            "Accuracy": "Accuracy (Factual correctness and data reliability)",
+            "Structure": "Structure (Logical organization and clear flow of information)",
+            "Depth": "Depth (Appropriate technical detail and thoroughness)",
+            "Style": "Style (Clear, professional, and engaging writing)",
+            "Tone": "Tone (Appropriate voice and perspective for audience)",
+            "Other": "Other (Please specify clearly in your comment)"
+        }
+        
+        # Create radio buttons with descriptions
+        st.write("Which of the following areas would you prioritize to immediately improve the output?")
+        
+        # Use radio buttons with values instead of keys
+        selected_area = st.radio(
+            "Select one area:",
+            options=[improvement_areas[key] for key in improvement_areas.keys()],
+            label_visibility="collapsed"
         )
         
-        st.markdown("### Technical Assessment")
-        tech_complexity = st.select_slider(
-            "Technical Complexity",
-            options=["Basic", "Moderate", "Complex", "Very Complex", "Cutting Edge"],
-            value="Moderate",
-            help="Assess the technical complexity of the implementation"
+        # If "Other" is selected, show text input
+        other_area = None
+        if "Other" in selected_area:
+            other_area = st.text_input("Please specify the other improvement area:")
+        
+        # 3. Specific Improvement Feedback
+        st.markdown("##### 3. Specific Improvement Feedback")
+        improvement_feedback = st.text_area(
+            "What specifically would you do differently in this area?",
+            help="Provide detailed suggestions for improving the selected area"
         )
         
-        # Detailed Comments
-        st.markdown("### Comments")
-        strengths = st.text_area("Strengths", help="What are the main strengths of this case study?")
-        weaknesses = st.text_area("Areas for Improvement", help="What aspects could be improved or clarified?")
-        notes = st.text_area("Additional Notes", help="Any other observations or comments?")
+        # Submit button at the bottom of the form
+        submitted = st.form_submit_button("Submit Evaluation", type="primary", use_container_width=True)
         
-        # Submit button
-        submitted = st.form_submit_button("Submit Evaluation")
-        if submitted:
-            
-            # TODO: Save evaluation to database
-            st.success("Evaluation submitted successfully!")
-            # Clear the current case study to get a new one
-            if 'current_case_study' in st.session_state:
-                del st.session_state['current_case_study']
-            st.rerun()
+    # Handle form submission outside the form
+    if submitted:
+        if not improvement_feedback:
+            st.error("Please provide specific improvement feedback before submitting.")
+            return
+        
+        # Update session state with form data
+        st.session_state.selected_area = selected_area
+        
+        # Prepare evaluation data
+        evaluation_data = {
+            "case_study_id": case_study.get('id'),
+            "confidence_score": confidence_score,
+            "improvement_area": other_area if "Other" in selected_area else selected_area.split(" (")[0],
+            "improvement_feedback": improvement_feedback
+        }
+        
+        # TODO: Save evaluation to database
+        st.success("Evaluation submitted successfully!")
+        
+        # Clear the current case study to get a new one
+        if 'current_case_study' in st.session_state:
+            del st.session_state['current_case_study']
+            del st.session_state.selected_area  # Reset selected area
+        st.rerun()
 
 def display_case_study(case_study):
     """Display the case study content"""
-    st.subheader("Case Study Content")
     
     if 'case_study_final' in case_study:
-        st.markdown(case_study['case_study_final'])
+
+        st.subheader("Case Study Content")
+
+        # Clean up the content by replacing separator lines with blank lines
+        content = case_study['case_study_final']
+        content = content.replace("- - - - - - - - -", "\n")
+        st.markdown(content)
+    
     else:
         st.warning("No content available for this case study")
 
 def display_tab():
     """Main function to display the evaluation tab"""
     
-    st.header("Case Study Evaluation")
-
     # Add a button to fetch a case study
     if 'current_case_study' not in st.session_state:
         if st.button("Get Random Case Study"):
