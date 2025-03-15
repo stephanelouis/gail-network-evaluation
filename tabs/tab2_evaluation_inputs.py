@@ -4,7 +4,7 @@ Handles case study review and rating.
 """
 
 import streamlit as st
-from webapps.web_backend.utils.firestore_manager import get_random_case_study
+from utils.firestore_manager import get_random_case_study
 
 def display_tab():
 
