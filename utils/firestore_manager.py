@@ -3,19 +3,39 @@ Firestore Manager for the Case Study Evaluation Hub.
 Handles all Firestore operations.
 """
 
+import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from typing import Dict, List, Any, Optional
 import pandas as pd
+import streamlit as st
 
-# Initialize Firebase (if not already initialized)
-try:
-    app = firebase_admin.get_app()
-except ValueError:
-    cred = credentials.Certificate('config/firebase-credentials.json')
-    app = firebase_admin.initialize_app(cred)
+# Global variables
+_db = None
 
-db = firestore.client()
+def get_db():
+    """Get or initialize Firestore database"""
+    global _db
+    if _db is None:
+        try:
+            app = firebase_admin.get_app()
+        except ValueError:
+            # Check if running on Streamlit Cloud
+            if 'FIREBASE_CREDENTIALS' in st.secrets:
+                # Use Streamlit secrets
+                cred_dict = st.secrets["FIREBASE_CREDENTIALS"]
+                if isinstance(cred_dict, str):
+                    cred_dict = json.loads(cred_dict)
+                cred = credentials.Certificate(cred_dict)
+            else:
+                # Local development - use file-based credentials
+                cred = credentials.Certificate('config/firebase-credentials.json')
+            
+            app = firebase_admin.initialize_app(cred)
+        
+        _db = firestore.client()
+    return _db
 
 def get_case_studies_stats() -> Dict[str, Any]:
     """
@@ -23,6 +43,8 @@ def get_case_studies_stats() -> Dict[str, Any]:
     Returns a dictionary containing various statistics and distributions.
     """
     try:
+        
+        db = get_db()
         # Get all case studies
         case_studies = db.collection('case_studies').get()
         evaluations = db.collection('evaluations').get()
@@ -89,6 +111,8 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     Returns None if no case studies are found.
     """
     try:
+
+        db = get_db()
         
         # Get all documents from case_studies collection
         docs = db.collection('case_studies').limit(1).stream()
