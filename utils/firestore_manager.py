@@ -10,44 +10,18 @@ from typing import Dict, List, Any, Optional
 import pandas as pd
 import streamlit as st
 
-# Global variables
-_db = None
+# Initialize Firebase
+try:
+    app = firebase_admin.get_app()
+except ValueError:
+    cred = credentials.Certificate(st.secrets["FIREBASE_CREDENTIALS"])
+    app = firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 def get_db():
     """Get or initialize Firestore database"""
-    global _db
-    if _db is None:
-        try:
-            
-            # First try to get existing app
-            app = firebase_admin.get_app()
-            st.write("Using existing Firebase app")
-        except ValueError:
-            try:
-                # Try to get credentials from Streamlit secrets
-                if not hasattr(st, 'secrets') or 'FIREBASE_CREDENTIALS' not in st.secrets:
-                    raise ValueError("No Firebase credentials found in Streamlit secrets")
-                
-                st.write("Initializing Firebase with Streamlit secrets")
-                cred_dict = st.secrets["FIREBASE_CREDENTIALS"]
-                if isinstance(cred_dict, str):
-                    try:
-                        cred_dict = json.loads(cred_dict)
-                    except json.JSONDecodeError as e:
-                        st.error("Failed to parse Firebase credentials from secrets")
-                        raise ValueError(f"Invalid Firebase credentials format: {str(e)}")
-                
-                cred = credentials.Certificate(cred_dict)
-                app = firebase_admin.initialize_app(cred)
-                st.write(f"Successfully initialized Firebase with project ID: {cred_dict.get('project_id')}")
-                
-            except Exception as e:
-                st.error(f"Failed to initialize Firebase: {str(e)}")
-                st.error("Please ensure Firebase credentials are properly configured in Streamlit secrets")
-                raise
-        
-        _db = firestore.client()
-    return _db
+    return db
 
 def get_case_studies_stats() -> Dict[str, Any]:
     """
@@ -123,29 +97,12 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     Returns None if no case studies are found.
     """
     try:
-
-        db = get_db()
-        st.write("Attempting to fetch case studies...")
-        
-        # Get all documents from case_studies collection
-        collection_ref = db.collection('case_studies')
-        st.write(f"Querying collection: {collection_ref.path}")
-        
-        docs = collection_ref.limit(1).stream()
-        doc_list = list(docs)  # Convert to list to check length
-        st.write(f"Found {len(doc_list)} documents")
-        
-        # Get the first document if available
-        if doc_list:
-            doc = doc_list[0]
+        docs = db.collection('case_studies').limit(1).stream()
+        for doc in docs:
             case_study = doc.to_dict()
             case_study['id'] = doc.id
-            st.write(f"Retrieved case study with ID: {doc.id}")
             return case_study
-            
-        st.write("No documents found in case_studies collection")
         return None
-    
     except Exception as e:
-        st.error(f"Error fetching case study: {str(e)}")
+        st.error(f"Error: {str(e)}")
         return None 
