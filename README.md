@@ -1,25 +1,24 @@
-# AI Case Study Evaluation Hub
+# Streamlit App
 
-## Overview
+## Local Setup
 
-This is a Streamlit web app that allows users to:
-
-1. **View Analytics Dashboard** (Metrics and insights for case studies)
-2. **Evaluate Case Studies** (Review and rate extracted case studies)
-3. **View Evaluation Summary** (Overview of evaluation results)
-
-## Installation & Setup
-
-### **Create & Activate Virtual Environment**
-
-# Create a virtual environment (Recommended)
+```bash
+# Setup virtual environment
 python3 -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 
-# Activate virtual environment (Mac/Linux)
-source venv/bin/activate
+# Install dependencies
+pip install -r requirements.txt
 
-# Activate virtual environment (Windows)
-venv\Scripts\activate
+# Setup config
+mkdir -p config
+# Add necessary credentials to config/firebase-credentials.json
 
-### Run the application
-python -m streamlit run webapps/web_backend/main_app.py
+# Run locally
+streamlit run main_app.py
+```
+
+## Deployment
+
+1. Add required secrets in Streamlit Cloud settings
+2. Deploy using Streamlit Cloud
