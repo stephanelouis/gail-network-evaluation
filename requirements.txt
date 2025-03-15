@@ -1,0 +1,7 @@
+streamlit==1.31.0
+pandas==2.2.0
+plotly==5.19.0
+firebase-admin==6.4.0
+python-dotenv==1.0.0
+google-cloud-firestore==2.13.1
+google-auth==2.27.0 
