@@ -4,6 +4,7 @@ Handles all Firestore operations.
 """
 
 import json
+import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 from typing import Dict, List, Any, Optional
@@ -11,26 +12,37 @@ import pandas as pd
 import streamlit as st
 
 # Initialize Firebase
-if not st.secrets or "FIREBASE_CREDENTIALS" not in st.secrets:
-    st.error("⚠️ Firebase credentials not found. Please configure them in Streamlit Cloud.")
+def get_firebase_credentials():
+    """Get Firebase credentials from either local file or Streamlit secrets"""
+    
+    # Try local credentials first
+    local_creds_path = "config/firebase-credentials.json"
+    if os.path.exists(local_creds_path):
+        with open(local_creds_path, 'r') as f:
+            return json.load(f)
+    
+    # Fall back to Streamlit secrets
+    if st.secrets and "FIREBASE_CREDENTIALS" in st.secrets:
+        creds = st.secrets["FIREBASE_CREDENTIALS"]
+        if isinstance(creds, str):
+            try:
+                return json.loads(creds)
+            except json.JSONDecodeError as e:
+                st.error(f"Failed to parse credentials JSON from Streamlit secrets: {str(e)}")
+                st.stop()
+        return creds
+    
+    st.error("⚠️ Firebase credentials not found. Please configure them in Streamlit Cloud or add a local config/firebase-credentials.json file.")
     st.stop()
 
 try:
     app = firebase_admin.get_app()
 except ValueError:
+    
     try:
-        # Debug: Print credential type
-        creds = st.secrets["FIREBASE_CREDENTIALS"]
-        st.write(f"Credential type: {type(creds)}")
         
-        # If credentials are string, parse them
-        if isinstance(creds, str):
-            try:
-                creds = json.loads(creds)
-                st.write("Successfully parsed JSON string")
-            except json.JSONDecodeError as e:
-                st.error(f"Failed to parse credentials JSON: {str(e)}")
-                st.stop()
+        # Get credentials from either local file or Streamlit secrets
+        creds = get_firebase_credentials()
         
         # Initialize Firebase
         cred = credentials.Certificate(creds)
