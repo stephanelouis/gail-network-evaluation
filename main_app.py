@@ -15,14 +15,16 @@ Version:       1.0.0
 """
 
 import streamlit as st
-from tabs import tab1_dashboard, tab2_evaluation_inputs, tab3_evaluation_summary
 
-# Set up Streamlit page layout & title
+# Set up Streamlit page layout & title first, before any other st commands
 st.set_page_config(
     page_title="Case Study Evaluation Hub", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Then import modules that might use streamlit
+from tabs import tab1_dashboard, tab2_evaluation_inputs, tab3_evaluation_summary
 
 # Add a title above the tabs
 st.title("AI Case Study Evaluation Hub")
