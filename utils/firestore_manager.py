@@ -3,7 +3,6 @@ Firestore Manager for the Case Study Evaluation Hub.
 Handles all Firestore operations.
 """
 
-import os
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -20,21 +19,25 @@ def get_db():
     if _db is None:
         try:
             app = firebase_admin.get_app()
+            st.write("Using existing Firebase app")
         except ValueError:
             # Check if running on Streamlit Cloud
             if 'FIREBASE_CREDENTIALS' in st.secrets:
                 # Use Streamlit secrets
+                st.write("Initializing Firebase with Streamlit secrets")
                 cred_dict = st.secrets["FIREBASE_CREDENTIALS"]
                 if isinstance(cred_dict, str):
                     cred_dict = json.loads(cred_dict)
                 cred = credentials.Certificate(cred_dict)
             else:
                 # Local development - use file-based credentials
+                st.write("Initializing Firebase with local credentials")
                 cred = credentials.Certificate('config/firebase-credentials.json')
             
             app = firebase_admin.initialize_app(cred)
         
         _db = firestore.client()
+        st.write(f"Connected to Firebase project: {app.project_id}")
     return _db
 
 def get_case_studies_stats() -> Dict[str, Any]:
@@ -113,18 +116,27 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     try:
 
         db = get_db()
+        st.write("Attempting to fetch case studies...")
         
         # Get all documents from case_studies collection
-        docs = db.collection('case_studies').limit(1).stream()
+        collection_ref = db.collection('case_studies')
+        st.write(f"Querying collection: {collection_ref.path}")
         
-        # Get the first document
-        for doc in docs:
+        docs = collection_ref.limit(1).stream()
+        doc_list = list(docs)  # Convert to list to check length
+        st.write(f"Found {len(doc_list)} documents")
+        
+        # Get the first document if available
+        if doc_list:
+            doc = doc_list[0]
             case_study = doc.to_dict()
-            case_study['id'] = doc.id  # Add the document ID to the data
+            case_study['id'] = doc.id
+            st.write(f"Retrieved case study with ID: {doc.id}")
             return case_study
             
+        st.write("No documents found in case_studies collection")
         return None
     
     except Exception as e:
-        print(f"Error fetching case study: {e}")
+        st.error(f"Error fetching case study: {str(e)}")
         return None 
