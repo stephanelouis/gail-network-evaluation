@@ -7,9 +7,13 @@ import json
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 import pandas as pd
 import streamlit as st
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Initialize Firebase
 def get_firebase_credentials():
@@ -28,28 +32,30 @@ def get_firebase_credentials():
             try:
                 return json.loads(creds)
             except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse credentials JSON from Streamlit secrets: {str(e)}")
                 st.error(f"Failed to parse credentials JSON from Streamlit secrets: {str(e)}")
                 st.stop()
         return creds
     
+    logger.error("Firebase credentials not found")
     st.error("⚠️ Firebase credentials not found. Please configure them in Streamlit Cloud or add a local config/firebase-credentials.json file.")
     st.stop()
 
 try:
     app = firebase_admin.get_app()
 except ValueError:
-    
     try:
-        
         # Get credentials from either local file or Streamlit secrets
         creds = get_firebase_credentials()
         
         # Initialize Firebase
         cred = credentials.Certificate(creds)
         app = firebase_admin.initialize_app(cred)
+        logger.info(f"Firebase initialized with project: {creds.get('project_id')}")
         st.write(f"Firebase initialized with project: {creds.get('project_id')}")
         
     except Exception as e:
+        logger.error(f"Failed to initialize Firebase: {str(e)}")
         st.error(f"⚠️ Failed to initialize Firebase: {str(e)}")
         st.stop()
 
@@ -133,21 +139,13 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     """
     try:
         
-        # Get all documents from case_studies collection
-        docs = list(db.collection('case_studies').stream())
+        # Use get_unevaluated_case_study to get a random case study that hasn't been evaluated
+        case_study = get_unevaluated_case_study(st.session_state.email)
         
-        if not docs:
-            st.error("No case studies found in database")
+        if case_study is None:
+            st.error("No unevaluated case studies found in database")
             return None
             
-        # Select a random document
-        from random import choice
-        doc = choice(docs)
-        
-        # Convert to dictionary and add ID
-        case_study = doc.to_dict()
-        case_study['id'] = doc.id
-        
         return case_study
         
     except Exception as e:
@@ -159,6 +157,7 @@ def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
     Save an evaluation to Firestore.
     Args:
         evaluation_data: Dictionary containing:
+            - id: The evaluation ID (pre-generated)
             - user_email: Email of the evaluator
             - case_study_id: ID of the evaluated case study
             - evaluation_score: Integer score from 1-10
@@ -168,15 +167,20 @@ def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
         bool: True if save was successful, False otherwise
     """
     try:
-
+        
+        # Use the pre-generated ID from the evaluation data
+        evaluation_id = evaluation_data['id']
+        
         # Add timestamp to the evaluation data
         evaluation_data['timestamp'] = firestore.SERVER_TIMESTAMP
         
-        # Save to Firestore
-        db.collection('evaluations').add(evaluation_data)
+        # Save to Firestore with the pre-generated ID
+        db.collection('evaluations').document(evaluation_id).set(evaluation_data)
+        logger.info(f"Successfully saved evaluation with ID: {evaluation_id}")
 
         return True
     except Exception as e:
+        logger.error(f"Error saving evaluation: {str(e)}")
         st.error(f"Error processing save_evaluation(): {str(e)}")
         return False
 
@@ -218,4 +222,67 @@ def get_unevaluated_case_study(user_email: str) -> Optional[Dict[str, Any]]:
         
     except Exception as e:
         st.error(f"Error processing get_unevaluated_case_study(): {str(e)}")
-        return None 
+        return None
+
+def get_user_evaluations_count(user_email):
+    """Get the number of case studies reviewed by a specific user"""
+    try:
+        # Query evaluations collection for the user's email
+        evaluations_ref = db.collection('evaluations')
+        query = evaluations_ref.where('evaluator_email', '==', user_email)
+        evaluations = query.get()
+        
+        return len(evaluations)
+    except Exception as e:
+        logger.error(f"Error getting user evaluations count: {e}")
+        return 0
+
+def get_user_evaluations(user_email):
+    """Get all evaluations provided by a specific user"""
+    
+    try:
+        logger.info(f"Fetching evaluations for user: {user_email}")
+        # Query evaluations collection for the user's email
+        evaluations_ref = db.collection('evaluations')
+        query = evaluations_ref.where('evaluator_email', '==', user_email)
+        evaluations = query.get()
+        
+        # Convert to list of dictionaries with document IDs and case study data
+        result = []
+        for eval in evaluations:
+
+            # Convert to dictionary
+            eval_dict = eval.to_dict()
+            # Get the case study document
+            case_study_doc = db.collection('case_studies').document(eval_dict['case_study_id']).get()
+            if case_study_doc.exists:
+                case_study_data = case_study_doc.to_dict()
+                eval_dict['case_study_url'] = case_study_data.get('source_url', 'N/A')
+                eval_dict['case_study_content'] = case_study_data.get('case_study_final', 'N/A')
+            else:
+                eval_dict['case_study_url'] = 'N/A'
+                eval_dict['case_study_content'] = 'N/A'
+            
+            # Add the evaluation ID
+            result.append({
+                'id': eval.id,
+                **eval_dict
+            })
+        
+        logger.info(f"Found {len(result)} evaluations for user {user_email}")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error getting user evaluations: {str(e)}")
+        return []
+
+def delete_evaluation(evaluation_id):
+    """Delete an evaluation by its ID"""
+    try:
+        logger.info(f"Attempting to delete evaluation: {evaluation_id}")
+        db.collection('evaluations').document(evaluation_id).delete()
+        logger.info(f"Successfully deleted evaluation: {evaluation_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
+        return False 

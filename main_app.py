@@ -27,6 +27,7 @@ st.set_page_config(
 # Then import modules that might use streamlit
 from tabs import tab1_guidelines, tab2_evaluation, tab3_summary
 from utils.auth import check_authentication
+from utils.firestore_manager import get_user_evaluations_count
 
 # Check authentication and show appropriate content
 authenticated = check_authentication()
@@ -36,6 +37,15 @@ if authenticated:
     # Add a title and user info at the top
     st.title("AI Case Study Evaluation Hub")
     st.markdown(f"*Logged in as: {st.session_state.email}*")
+    
+    # Color-coded review count
+    review_count = get_user_evaluations_count(st.session_state.email)
+    if review_count == 0:
+        st.markdown(f"*Case studies reviewed*: {review_count} / 10")
+    elif review_count < 10:
+        st.markdown(f"*Case studies reviewed*: {review_count} / 10")
+    else:
+        st.markdown(f"*Case studies reviewed: {review_count}*")
 
     # Initialize current tab in session state if not exists
     if 'current_tab' not in st.session_state:

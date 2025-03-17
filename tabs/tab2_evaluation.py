@@ -36,7 +36,7 @@ def display_case_study(case_study):
         
         logger.info(f"Displaying case study: {case_study.get('id', 'N/A')}")
         st.subheader("Case Study Content")
-        st.info("Step 2. Read the case study content carefully.")
+        st.info("Step 1. Read the case study content carefully.")
 
         # Clean up the content by replacing separator lines with blank lines
         content = case_study['case_study_final']
@@ -57,7 +57,7 @@ def display_evaluation_form(case_study):
     with st.form("evaluation_form"):
 
         st.subheader("Evaluation Form")
-        st.info("Step 3. Evaluate the case study based on the following criteria.")
+        st.info("Step 2. Evaluate the case study based on the following criteria.")
         
         # Basic Information
         st.write(f"**Case Study ID:** {case_study.get('id', 'N/A')}")
@@ -162,7 +162,7 @@ def display_content():
     if not st.session_state.content_loaded:
         
         # Add description in its own container
-        description_container.info("Step 1. Start by clicking the button below to get a random case study to evaluate.")
+        description_container.info("Click the button below to get a random case study to evaluate.")
         
         # Add button in separate container
         if button_container.button("Get Case Study to evaluate"):
