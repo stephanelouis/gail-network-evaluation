@@ -58,6 +58,7 @@ def show_login_page():
     st.markdown("Please enter your email to access the application.")
     
     with st.form("auth_form"):
+        
         email = st.text_input("Email Address").strip()
         submitted = st.form_submit_button("Submit")
         

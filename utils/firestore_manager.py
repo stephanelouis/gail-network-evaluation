@@ -116,7 +116,6 @@ def get_case_studies_stats() -> Dict[str, Any]:
         }
 
     except Exception as e:
-        print(f"Error getting case studies stats: {e}")
         return {
             "total_case_studies": 0,
             "evaluated_case_studies": 0,
@@ -133,12 +132,90 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     Returns None if no case studies are found.
     """
     try:
-        docs = db.collection('case_studies').limit(1).stream()
-        for doc in docs:
-            case_study = doc.to_dict()
-            case_study['id'] = doc.id
-            return case_study
-        return None
+        
+        # Get all documents from case_studies collection
+        docs = list(db.collection('case_studies').stream())
+        
+        if not docs:
+            st.error("No case studies found in database")
+            return None
+            
+        # Select a random document
+        from random import choice
+        doc = choice(docs)
+        
+        # Convert to dictionary and add ID
+        case_study = doc.to_dict()
+        case_study['id'] = doc.id
+        
+        return case_study
+        
     except Exception as e:
-        st.error(f"Database error: {str(e)}")
+        st.error(f"Error processing get_random_case_study(): {str(e)}")
+        return None
+
+def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
+    """
+    Save an evaluation to Firestore.
+    Args:
+        evaluation_data: Dictionary containing:
+            - user_email: Email of the evaluator
+            - case_study_id: ID of the evaluated case study
+            - evaluation_score: Integer score from 1-10
+            - improvement_area: Selected improvement area
+            - improvement_feedback: Detailed feedback text
+    Returns:
+        bool: True if save was successful, False otherwise
+    """
+    try:
+
+        # Add timestamp to the evaluation data
+        evaluation_data['timestamp'] = firestore.SERVER_TIMESTAMP
+        
+        # Save to Firestore
+        db.collection('evaluations').add(evaluation_data)
+
+        return True
+    except Exception as e:
+        st.error(f"Error processing save_evaluation(): {str(e)}")
+        return False
+
+def get_unevaluated_case_study(user_email: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch a random case study that hasn't been evaluated by the given user.
+    Args:
+        user_email: Email of the user
+    Returns:
+        Optional[Dict[str, Any]]: A case study dictionary or None if no unevaluated cases found
+    """
+    try:
+        
+        # Get all case study IDs this user has evaluated
+        evaluated_refs = db.collection('evaluations')\
+            .where('user_email', '==', user_email)\
+            .select('case_study_id')\
+            .get()
+        
+        evaluated_ids = {eval.to_dict()['case_study_id'] for eval in evaluated_refs}
+        
+        # Get all case studies
+        all_cases = db.collection('case_studies').get()
+        available_cases = []
+        
+        # Filter out evaluated ones
+        for doc in all_cases:
+            if doc.id not in evaluated_ids:
+                case_study = doc.to_dict()
+                case_study['id'] = doc.id
+                available_cases.append(case_study)
+        
+        # Return a random one if any available
+        if available_cases:
+            from random import choice
+            return choice(available_cases)
+        
+        return None
+        
+    except Exception as e:
+        st.error(f"Error processing get_unevaluated_case_study(): {str(e)}")
         return None 
