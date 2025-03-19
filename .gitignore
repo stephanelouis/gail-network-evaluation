@@ -1,6 +1,7 @@
 # Virtual Environment
 venv/
 venv_laptop/
+venv_mac/
 
 # Python
 __pycache__/

@@ -15,7 +15,7 @@ mkdir -p config
 # Add necessary credentials to config/firebase-credentials.json
 
 # Run locally
-streamlit run main_app.py
+python -m streamlit run main_app.py
 ```
 
 ## Deployment
