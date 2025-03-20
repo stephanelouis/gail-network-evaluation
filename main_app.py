@@ -25,7 +25,7 @@ st.set_page_config(
 )
 
 # Then import modules that might use streamlit
-from tabs import tab1_guidelines, tab2_evaluation, tab3_summary
+from tabs import tab1_guidelines, tab2_evaluation, tab3_user_summary, tab4_team_summary
 from utils.auth import check_authentication
 from utils.firestore_manager import get_user_evaluations_count
 
@@ -52,10 +52,11 @@ if authenticated:
         st.session_state.current_tab = "Guidelines"
 
     # Define tabs for different functionalities
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "📊 Guidelines", 
         "📝 Evaluation", 
-        "📈 Summary"
+        "📈 User Summary",
+        "📈 Team Summary"
     ])
 
     # Function to handle tab change
@@ -79,8 +80,15 @@ if authenticated:
         tab2_evaluation.display_content()
 
     # = = = = = = = = = = = = = = = = = = = =
-    # TAB 3: SUMMARY
+    # TAB 3: USER SUMMARY
     # = = = = = = = = = = = = = = = = = = = =
     with tab3:
-        handle_tab_change("Summary")
-        tab3_summary.display_content()
+        handle_tab_change("User Summary")
+        tab3_user_summary.display_content()
+        
+    # = = = = = = = = = = = = = = = = = = = =
+    # TAB 4: TEAM SUMMARY
+    # = = = = = = = = = = = = = = = = = = = =
+    with tab4:
+        handle_tab_change("Team Summary")
+        tab4_team_summary.display_content()
