@@ -28,6 +28,7 @@ st.set_page_config(
 # Check authentication and show appropriate content
 authenticated = check_authentication()
 
+# TODO: Add a page to display the current version of the app
 if authenticated:
     pg = st.navigation([
         st.Page("_1_Dashboard.py"), 
