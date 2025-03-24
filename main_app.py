@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 # Set up Streamlit page layout & title first, before any other st commands
 st.set_page_config(
-    page_title="Case Study Evaluation Hub", 
+    page_title="AI Case Study Library",
+    page_icon="📚",
     layout="wide"
 )
 
@@ -38,3 +39,9 @@ if authenticated:
         st.Page("_99_Case_Studies_Viewer.py"), 
         ])
     pg.run()
+
+# Main content
+st.title("AI Case Study Library")
+st.markdown("""
+Welcome to the AI Case Study Library! This tool helps you explore and analyze AI case studies.
+""")
