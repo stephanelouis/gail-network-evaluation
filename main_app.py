@@ -30,6 +30,7 @@ authenticated = check_authentication()
 
 # TODO: Add a page to display the current version of the app
 if authenticated:
+
     pg = st.navigation([
         st.Page("_1_Dashboard.py"), 
         st.Page("_2_Case_Study_Evaluation (1).py"), 
@@ -38,9 +39,3 @@ if authenticated:
         st.Page("_99_Case_Studies_Library.py"), 
         ])
     pg.run()
-
-# Main content
-st.title("AI Case Study Library")
-st.markdown("""
-Welcome to the AI Case Study Library! This tool helps you explore and analyze AI case studies.
-""")

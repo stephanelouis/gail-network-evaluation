@@ -11,7 +11,7 @@ def display_content():
     st.subheader("Evaluation Summary")
     
     # Get all evaluations for the current user
-    evaluations = get_user_evaluations(st.session_state.email, "evaluations", "case_studies")
+    evaluations = get_user_evaluations(st.session_state.email, "evaluations_v2", "case_studies_v2")
     
     if not evaluations:
         logger.info(f"No evaluations found for user: {st.session_state.email}")
@@ -51,6 +51,7 @@ def display_content():
             tab1, tab2 = st.tabs(["Evaluation Details", "Case Study Content"])
             
             with tab1:
+
                 st.write(f"**Case Study ID:** {row['Case Study ID']}")
                 st.write(f"**Case Study URL:** {row['Case Study URL']}")
                 st.write(f"**Score:** {row['Score']}/10")
@@ -62,7 +63,7 @@ def display_content():
 
                     logger.info(f"Delete button clicked for evaluation: {row['Evaluation ID']}")
                     
-                    if delete_evaluation(row['Evaluation ID'], "evaluations"):
+                    if delete_evaluation(row['Evaluation ID'], "evaluations_v2"):
                         logger.info(f"Successfully deleted evaluation: {row['Evaluation ID']}")
                         st.success("Evaluation deleted successfully!")
                         st.rerun()

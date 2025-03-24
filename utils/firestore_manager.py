@@ -51,8 +51,6 @@ except ValueError:
         # Initialize Firebase
         cred = credentials.Certificate(creds)
         app = firebase_admin.initialize_app(cred)
-        logger.info(f"Firebase initialized with project: {creds.get('project_id')}")
-        st.write(f"Firebase initialized with project: {creds.get('project_id')}")
         
     except Exception as e:
         logger.error(f"Failed to initialize Firebase: {str(e)}")
@@ -65,7 +63,7 @@ def get_db():
     """Get or initialize Firestore database"""
     return db
 
-def get_random_case_study() -> Optional[Dict[str, Any]]:
+def get_random_case_study(case_studies_collection_name: str, evaluations_collection_name: str) -> Optional[Dict[str, Any]]:
     """
     Fetch a random case study from Firestore that hasn't been evaluated yet.
     Returns None if no case studies are found.
@@ -73,7 +71,7 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
     try:
         
         # Use get_unevaluated_case_study to get a random case study that hasn't been evaluated
-        case_study = get_unevaluated_case_study(st.session_state.email)
+        case_study = get_unevaluated_case_study(st.session_state.email, case_studies_collection_name, evaluations_collection_name)
         
         if case_study is None:
             st.error("No unevaluated case studies found in database")
@@ -85,7 +83,7 @@ def get_random_case_study() -> Optional[Dict[str, Any]]:
         st.error(f"Error processing get_random_case_study(): {str(e)}")
         return None
 
-def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
+def save_evaluation(evaluation_data: Dict[str, Any], collection_name: str) -> bool:
     """
     Save an evaluation to Firestore.
     Args:
@@ -93,6 +91,7 @@ def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
             - id: The evaluation ID (pre-generated)
             - user_email: Email of the evaluator
             - case_study_id: ID of the evaluated case study
+            - case_study_url: URL of the evaluated case study
             - evaluation_score: Integer score from 1-10
             - improvement_area: Selected improvement area
             - improvement_feedback: Detailed feedback text
@@ -108,7 +107,7 @@ def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
         evaluation_data['timestamp'] = firestore.SERVER_TIMESTAMP
         
         # Save to Firestore with the pre-generated ID
-        db.collection('evaluations').document(evaluation_id).set(evaluation_data)
+        db.collection(collection_name).document(evaluation_id).set(evaluation_data)
         logger.info(f"Successfully saved evaluation with ID: {evaluation_id}")
 
         return True
@@ -117,34 +116,87 @@ def save_evaluation(evaluation_data: Dict[str, Any]) -> bool:
         st.error(f"Error processing save_evaluation(): {str(e)}")
         return False
 
-def get_unevaluated_case_study(user_email: str) -> Optional[Dict[str, Any]]:
+def get_unevaluated_case_study(
+        user_email: str, 
+        case_studies_collection_name: str, 
+        evaluations_collection_name: str
+    ) -> Optional[Dict[str, Any]]:
     """
     Fetch a random case study that hasn't been evaluated by the given user.
     Args:
         user_email: Email of the user
+        case_studies_collection_name: Name of the collection containing case studies
+        evaluations_collection_name: Name of the collection containing evaluations
     Returns:
         Optional[Dict[str, Any]]: A case study dictionary or None if no unevaluated cases found
     """
     try:
         
-        # Get all case study IDs this user has evaluated
-        evaluated_refs = db.collection('evaluations')\
+        available_cases = []
+
+        # Get all case studies this user has evaluated
+        evaluated_refs = db.collection(evaluations_collection_name)\
             .where('user_email', '==', user_email)\
-            .select('case_study_id')\
             .get()
         
-        evaluated_ids = {eval.to_dict()['case_study_id'] for eval in evaluated_refs}
+        # Get all case study IDs and clean URLs this user has evaluated
+        evaluated_ids = set()
+        evaluated_clean_urls = set()
         
+        for eval_ref in evaluated_refs:
+
+            # Get the evaluation data
+            eval_data = eval_ref.to_dict()
+            
+            # Add case study ID to evaluated set
+            case_study_id = eval_data.get('case_study_id')
+            if case_study_id:
+                evaluated_ids.add(case_study_id)
+            
+            # Add clean URL to evaluated set
+            source_url = eval_data.get('source_url')
+            if source_url:
+                clean_url = URLHelper.clean_url(source_url)
+                if clean_url:
+                    evaluated_clean_urls.add(clean_url)
+
         # Get all case studies
-        all_cases = db.collection('case_studies').get()
-        available_cases = []
+        all_cases = db.collection(case_studies_collection_name).get()
         
-        # Filter out evaluated ones
+        # Process each case study
         for doc in all_cases:
-            if doc.id not in evaluated_ids:
+
+            try:
+            
+                # Skip if already evaluated by ID
+                if doc.id in evaluated_ids:
+                    continue
+                
+                # Get case study data
                 case_study = doc.to_dict()
+                if not case_study:
+                    continue
+                
+                # Add document ID
                 case_study['id'] = doc.id
+                
+                # Add clean URL if source_url exists and check if it's been evaluated
+                source_url = case_study.get('source_url')
+                if source_url:
+                    clean_url = URLHelper.clean_url(source_url)
+                    case_study['clean_url'] = clean_url
+                    
+                    # Skip if we've already evaluated a case study from this URL
+                    if clean_url in evaluated_clean_urls:
+                        continue
+                else:
+                    case_study['clean_url'] = ''
+                
                 available_cases.append(case_study)
+                
+            except Exception as e:
+                logger.error(f"Error processing case study {doc.id}: {str(e)}")
+                continue
         
         # Return a random one if any available
         if available_cases:
@@ -154,7 +206,7 @@ def get_unevaluated_case_study(user_email: str) -> Optional[Dict[str, Any]]:
         return None
         
     except Exception as e:
-        st.error(f"Error processing get_unevaluated_case_study(): {str(e)}")
+        logger.error(f"Error processing get_unevaluated_case_study(): {str(e)}")
         return None
 
 def get_user_evaluations_count(user_email):
@@ -170,24 +222,26 @@ def get_user_evaluations_count(user_email):
         logger.error(f"Error getting user evaluations count: {e}")
         return 0
 
-def get_user_evaluations(user_email):
+def get_user_evaluations(user_email: str, evaluations_collection_name: str, case_studies_collection_name: str):
     """Get all evaluations provided by a specific user"""
     
     try:
-        logger.info(f"Fetching evaluations for user: {user_email}")
+
+        result = []
+
         # Query evaluations collection for the user's email
-        evaluations_ref = db.collection('evaluations')
+        evaluations_ref = db.collection(evaluations_collection_name)
         query = evaluations_ref.where('evaluator_email', '==', user_email)
         evaluations = query.get()
         
         # Convert to list of dictionaries with document IDs and case study data
-        result = []
         for eval in evaluations:
 
             # Convert to dictionary
             eval_dict = eval.to_dict()
+
             # Get the case study document
-            case_study_doc = db.collection('case_studies').document(eval_dict['case_study_id']).get()
+            case_study_doc = db.collection(case_studies_collection_name).document(eval_dict['case_study_id']).get()
             if case_study_doc.exists:
                 case_study_data = case_study_doc.to_dict()
                 eval_dict['case_study_url'] = case_study_data.get('source_url', 'N/A')
@@ -202,18 +256,17 @@ def get_user_evaluations(user_email):
                 **eval_dict
             })
         
-        logger.info(f"Found {len(result)} evaluations for user {user_email}")
+        # Return the result
         return result
     
     except Exception as e:
         logger.error(f"Error getting user evaluations: {str(e)}")
         return []
 
-def delete_evaluation(evaluation_id):
+def delete_evaluation(evaluation_id: str, collection_name: str):
     """Delete an evaluation by its ID"""
     try:
-        logger.info(f"Attempting to delete evaluation: {evaluation_id}")
-        db.collection('evaluations').document(evaluation_id).delete()
+        db.collection(collection_name).document(evaluation_id).delete()
         logger.info(f"Successfully deleted evaluation: {evaluation_id}")
         return True
     except Exception as e:

@@ -132,7 +132,7 @@ def display_evaluation_form(case_study):
             }   
 
             # Save evaluation to firestore
-            save_evaluation(evaluation_object)
+            save_evaluation(evaluation_object, "evaluations")
             
             # Show success message
             st.success("Evaluation submitted successfully!")
@@ -167,7 +167,7 @@ def display_content():
         # Add button in separate container
         if button_container.button("Get Case Study to evaluate"):
 
-            case_study = get_random_case_study()
+            case_study = get_random_case_study("case_studies", "evaluations")
 
             # Case study found
             if case_study:
