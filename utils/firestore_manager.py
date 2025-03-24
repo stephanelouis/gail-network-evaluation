@@ -2,15 +2,15 @@
 Firestore Manager for the Case Study Evaluation Hub.
 Handles all Firestore operations.
 """
-
-import json
-import os
 import firebase_admin
 from firebase_admin import credentials, firestore
-from typing import Dict, Any, Optional
-import pandas as pd
-import streamlit as st
+import json
 import logging
+import os
+import streamlit as st
+from typing import Dict, Any, Optional, List
+
+from utils.url_helper import URLHelper
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -64,73 +64,6 @@ db = firestore.client()
 def get_db():
     """Get or initialize Firestore database"""
     return db
-
-def get_case_studies_stats() -> Dict[str, Any]:
-    """
-    Retrieve statistics about case studies from Firestore.
-    Returns a dictionary containing various statistics and distributions.
-    """
-    try:
-        
-        db = get_db()
-        # Get all case studies
-        case_studies = db.collection('case_studies').get()
-        evaluations = db.collection('evaluations').get()
-
-        # Convert to list of dictionaries
-        case_studies_data = [doc.to_dict() for doc in case_studies]
-        evaluations_data = [doc.to_dict() for doc in evaluations]
-
-        # Basic counts
-        total_cases = len(case_studies_data)
-        evaluated_cases = len(set(eval['case_study_id'] for eval in evaluations_data))
-        
-        # Create distributions
-        industry_dist = {}
-        business_functions_dist = {}
-        business_impacts_dist = {}
-
-        for case in case_studies_data:
-            # Industry distribution
-            industry = case.get('case_study_classification', {}).get('industry', {}).get('industry_classification')
-            if industry:
-                industry_dist[industry] = industry_dist.get(industry, 0) + 1
-
-            # Business functions distribution
-            functions = case.get('case_study_classification', {}).get('business_functions', [])
-            for func in functions:
-                if func:
-                    business_functions_dist[func] = business_functions_dist.get(func, 0) + 1
-
-            # Business impacts distribution
-            impacts = case.get('case_study_classification', {}).get('business_impacts', [])
-            for impact in impacts:
-                if impact:
-                    business_impacts_dist[impact] = business_impacts_dist.get(impact, 0) + 1
-
-        # Create detailed DataFrame
-        detailed_data = pd.DataFrame(case_studies_data)
-
-        return {
-            "total_case_studies": total_cases,
-            "evaluated_case_studies": evaluated_cases,
-            "pending_evaluations": total_cases - evaluated_cases,
-            "industry_distribution": industry_dist,
-            "business_functions": business_functions_dist,
-            "business_impacts": business_impacts_dist,
-            "detailed_data": detailed_data if not detailed_data.empty else None
-        }
-
-    except Exception as e:
-        return {
-            "total_case_studies": 0,
-            "evaluated_case_studies": 0,
-            "pending_evaluations": 0,
-            "industry_distribution": {},
-            "business_functions": {},
-            "business_impacts": {},
-            "detailed_data": None
-        }
 
 def get_random_case_study() -> Optional[Dict[str, Any]]:
     """
@@ -285,4 +218,53 @@ def delete_evaluation(evaluation_id):
         return True
     except Exception as e:
         logger.error(f"Error deleting evaluation {evaluation_id}: {str(e)}")
-        return False 
+        return False
+
+def get_one_case_study_per_company() -> List[Dict[str, Any]]:
+    """
+    Retrieve one case study per company from Firestore.
+    Returns a list of dictionaries containing case study data grouped by company URL.
+    """
+    try:
+        db = get_db()
+        if db is None:
+            logger.error("Database connection failed")
+            return []
+
+        # Get all case studies
+        case_studies = db.collection('case_studies_v2').get()
+        if case_studies is None:
+            logger.error("Failed to fetch case studies")
+            return []
+
+        # Convert to list of dictionaries and group by clean URL
+        url_cases = {}
+        for doc in case_studies:
+            try:
+                data = doc.to_dict()
+                if not data:
+                    continue
+                    
+                source_url = data.get('source_url')
+                if not source_url:
+                    continue
+                    
+                clean_url = URLHelper.clean_url(source_url)
+                if not clean_url:
+                    continue
+                    
+                # Only keep the first case study for each clean URL
+                if clean_url not in url_cases:
+                    data['id'] = doc.id
+                    url_cases[clean_url] = data
+                    
+            except Exception as e:
+                logger.error(f"Error processing case study {doc.id}: {str(e)}")
+                continue
+
+        # Convert to list of case studies
+        return list(url_cases.values())
+
+    except Exception as e:
+        logger.error(f"Error getting case studies by company: {str(e)}")
+        return [] 
