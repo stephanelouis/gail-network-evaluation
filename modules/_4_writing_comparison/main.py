@@ -14,6 +14,7 @@ def display_content_page():
     - Case studies sound too technical.
     - Case studies sound too vendor-like.
     """)
+    
 
     try:
         
