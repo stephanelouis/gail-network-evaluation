@@ -11,7 +11,7 @@ def load_company_urls():
         list: Sorted list of unique company URLs.
     """
     try:
-        urls_file = "config/company_urls.txt"
+        urls_file = "inputs/company_urls.txt"
         if not os.path.exists(urls_file):
             st.error(f"URLs file not found at {urls_file}")
             return []
