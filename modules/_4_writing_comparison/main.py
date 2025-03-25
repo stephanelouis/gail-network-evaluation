@@ -30,10 +30,12 @@ def display_content_page():
                 clean_url = URLHelper.clean_url(source_url)
                 
                 with st.expander(f"🏢 {clean_url}"):
+                    
                     # Create two columns for side-by-side comparison
                     col1, col2 = st.columns(2)
                     
                     with col1:
+
                         st.markdown("### Original Summary")
                         # Format old summary
                         old_summary = case.get('case_study_summary_old')
@@ -44,6 +46,7 @@ def display_content_page():
                             st.info("No original summary available")
                     
                     with col2:
+
                         st.markdown("### New Summary")
                         # Format new summary
                         new_summary = case.get('case_study_summary')

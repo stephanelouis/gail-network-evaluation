@@ -2,6 +2,7 @@ import streamlit as st
 import logging
 from modules._3_case_study_evaluation_2.tabs.tab1_evaluation import display_content as display_evaluation
 from modules._3_case_study_evaluation_2.tabs.tab2_user_summary import display_content as display_user_summary
+from modules._3_case_study_evaluation_2.tabs.tab3_team_summary import display_content as display_team_summary
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,9 +21,10 @@ def display_content_page():
         st.session_state.current_tab = "Guidelines"
 
     # Define tabs for different functionalities
-    tab1, tab2 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "📝 Evaluation", 
-        "📈 User Summary"
+        "📈 User Summary",
+        "📈 Team Summary"
     ])
 
     # Function to handle tab change
@@ -47,6 +49,6 @@ def display_content_page():
     # = = = = = = = = = = = = = = = = = = = =
     # TAB 3: TEAM SUMMARY
     # = = = = = = = = = = = = = = = = = = = =
-    # with tab3:
-    #     handle_tab_change("Team Summary")
-    #     display_team_summary()
+    with tab3:
+        handle_tab_change("Team Summary")
+        display_team_summary()

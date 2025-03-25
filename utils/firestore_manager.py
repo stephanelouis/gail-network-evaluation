@@ -279,6 +279,7 @@ def get_one_case_study_per_company() -> List[Dict[str, Any]]:
     Returns a list of dictionaries containing case study data grouped by company URL.
     """
     try:
+
         db = get_db()
         if db is None:
             logger.error("Database connection failed")
@@ -294,6 +295,7 @@ def get_one_case_study_per_company() -> List[Dict[str, Any]]:
         url_cases = {}
         for doc in case_studies:
             try:
+
                 data = doc.to_dict()
                 if not data:
                     continue
