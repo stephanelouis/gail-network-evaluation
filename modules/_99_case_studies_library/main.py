@@ -37,9 +37,9 @@ def display_content_page():
             
             # Set collecton ref for the query
             try:
-                case_studies_ref = db.collection('case_studies_v2')
+                case_studies_ref = db.collection('case_studies_v3')
                 if case_studies_ref is None:
-                    st.error("Failed to access the case_studies_v2 collection.")
+                    st.error("Failed to access the case_studies_v3 collection.")
                     return
             except Exception as e:
                 st.error(f"Error accessing collection: {str(e)}")

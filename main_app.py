@@ -36,6 +36,7 @@ if authenticated:
         st.Page("_2_Case_Study_Evaluation (1).py"), 
         st.Page("_3_Case_Study_Evaluation (2).py"), 
         st.Page("_4_Writing_Comparison.py"), 
+        st.Page("_5_Multi_Sources_Addition.py"), 
         st.Page("_99_Case_Studies_Library.py"), 
         ])
     pg.run()
